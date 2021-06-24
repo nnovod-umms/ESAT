@@ -32,6 +32,8 @@ object Parser {
     filtAtN = None
   )
 
+  // scopt readers to parse value types not built in to base scopt
+  // note that when readers throw exceptions they are picked up by scopt and cleanly set as parsing errors
   // scopt readers for enumerated values
   implicit val taskRead: scopt.Read[Task] =
     scopt.Read.reads(s => NamedEnum.find(s, Task.values))
@@ -46,7 +48,7 @@ object Parser {
 
   // Create a parser for parameters
   private val esatParser = {
-    import builder._ // Bring in options for Params parser (opt, etc.)
+    import builder._ // Bring in options for building Params parser (programName, head, opt, ...)
     // Specify parser options
     OParser.sequence(
       programName("ESAT"),
@@ -179,6 +181,6 @@ object Parser {
    * @param args input arguments
    * @return parameters filled in, or None if errors found in input.
    */
-  def doParse(args: Array[String]) = OParser.parse(esatParser, args, initParams)
+  def doParse(args: Array[String]): Option[Params] = OParser.parse(esatParser, args, initParams)
 }
 
