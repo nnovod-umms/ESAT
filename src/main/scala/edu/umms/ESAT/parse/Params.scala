@@ -78,7 +78,7 @@ object Params {
     private[parse] def find[T <: NamedEnum](str: String, values: Array[T]): T =
       values.find(enumVal => enumVal.name == str) match {
         case Some(enumVal) => enumVal
-        case _ => throw Exception("Invalid enumerated value")
+        case _ => throw Exception("Invalid enumerated value.")
       }
   }
 
