@@ -9,29 +9,6 @@ import scopt.OParser
 import java.io.File
 
 object Parser {
-  // Initial parameter setup with defaults to be passed into parser
-  private val initParams = Params(
-    task = Task.find(taskDef),
-    outFile = File("ToBeReplaced"),
-    inFiles = Seq.empty,
-    inExperiment = expDef,
-    alignments = None,
-    annotationFile = None,
-    windowLength = windowLenDef,
-    windowOverlap = windowOverlapDef,
-    windowExtend = windowExtendDef,
-    allWindows = allWindowsDef,
-    multimap = MultiMap.find(multiMapDef),
-    qThresh = qThreshDef,
-    gMapFile = None,
-    pValThresh = pValThreshDef,
-    stranded = strandedDef,
-    scPreprocess = scPreprocessDef,
-    bcMin = bcMinDef,
-    umiMin = umiMinDef,
-    filtAtN = None
-  )
-
   // scopt readers to parse value types not built in to base scopt
   // note that when readers throw exceptions they are picked up by scopt and cleanly set as parsing errors
   // scopt readers for enumerated values
@@ -181,6 +158,30 @@ object Parser {
    * @param args input arguments
    * @return parameters filled in, or None if errors found in input.
    */
-  def doParse(args: Array[String]): Option[Params] = OParser.parse(esatParser, args, initParams)
+  def doParse(args: Array[String]): Option[Params] = {
+    // Initial parameter setup with defaults to be passed into parser
+    val initParams = Params(
+      task = Task.find(taskDef),
+      outFile = File("ToBeReplaced"),
+      inFiles = Seq.empty,
+      inExperiment = expDef,
+      alignments = None,
+      annotationFile = None,
+      windowLength = windowLenDef,
+      windowOverlap = windowOverlapDef,
+      windowExtend = windowExtendDef,
+      allWindows = allWindowsDef,
+      multimap = MultiMap.find(multiMapDef),
+      qThresh = qThreshDef,
+      gMapFile = None,
+      pValThresh = pValThreshDef,
+      stranded = strandedDef,
+      scPreprocess = scPreprocessDef,
+      bcMin = bcMinDef,
+      umiMin = umiMinDef,
+      filtAtN = None
+    )
+    OParser.parse(esatParser, args, initParams)
+  }
 }
 
