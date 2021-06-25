@@ -106,7 +106,7 @@ object Parser {
       opt[Int]('f', "filtAT")
         .valueName("<integer>")
         .action((fat, c) => c.copy(filtAtN = Some(fat)))
-        .text("optional A/T filtering")
+        .text("optional removal of reads with contiguous As or Ts (not removed by default)")
       ,
       opt[Int]('w', "wLen")
         .valueName("<integer>")

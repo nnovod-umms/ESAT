@@ -52,7 +52,7 @@ object Params {
   private[parse] val multiMapDef = "normal"
   private[parse] val qThreshDef = 0
   private[parse] val pValThreshDef = 1.0f
-  private[parse] val bcMinDef = 0
+  private[parse] val bcMinDef = 1
   private[parse] val umiMinDef = 1
   private[parse] val allWindowsDef = false
   private[parse] val strandedDef = true
