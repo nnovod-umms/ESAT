@@ -23,7 +23,7 @@ case class Params
   // within a set of contiguous overlapping windows.)
   multimap: MultiMap, // one of "ignore", "normal" or "scale"
   //No longer needed - was just used to say if qThresh was present: qFilter: Boolean = false,
-  qThresh: Option[Int], // quality threshold (reads must be GREATER THAN qThresh, if filtering is on
+  qThresh: Int, // quality threshold (reads must be GREATER THAN qThresh, if filtering is on)
   gMapFile: Option[File], // name of the gene mapping file
   pValThresh: Float, // minimum allowable p-value for window significance testing
   stranded: Boolean, // allow for unstranded analysis (defaults to stranded)
@@ -50,6 +50,7 @@ object Params {
   private[parse] val windowOverlapDef = 0
   private[parse] val windowExtendDef = 0
   private[parse] val multiMapDef = "normal"
+  private[parse] val qThreshDef = 0
   private[parse] val pValThreshDef = 1.0f
   private[parse] val bcMinDef = 0
   private[parse] val umiMinDef = 1
@@ -67,15 +68,15 @@ object Params {
   /**
    * Companion object with methods to work on named enums
    */
-  object NamedEnum {
+  private object NamedEnum {
     /**
-     * Get enum value that matches string.  If none found then throws exception.  Expected 
+     * Get enum value that matches string.  If none found then throws exception.
      * @param str string to match
      * @param values enum values
      * @tparam T NamedEnum type
      * @return enum value found
      */
-    private[parse] def find[T <: NamedEnum](str: String, values: Array[T]): T =
+    def find[T <: NamedEnum](str: String, values: Array[T]): T =
       values.find(enumVal => enumVal.name == str) match {
         case Some(enumVal) => enumVal
         case _ => throw Exception("Invalid enumerated value.")
@@ -91,6 +92,19 @@ object Params {
   }
 
   /**
+   * Companion object for methods
+   */
+  private[parse] object Task {
+    /**
+     * Get enum value that matches string.  If none found then throws exception.
+     * @param str string to match
+     * @return enum value found
+     */
+    def find[Task](str: String) =
+      NamedEnum.find(str, Task.values)
+  }
+
+  /**
    * Multimap read treatment
    */
   enum MultiMap(name: String) extends NamedEnum(name) {
@@ -98,5 +112,18 @@ object Params {
     case IGNORE extends MultiMap("ignore")
     case SCALE extends MultiMap("scale")
     case PROPER extends MultiMap("proper")
+  }
+
+  /**
+   * Companion object for methods
+   */
+  private[parse] object MultiMap {
+    /**
+     * Get enum value that matches string.  If none found then throws exception.
+     * @param str string to match
+     * @return enum value found
+     */
+    def find[Task](str: String) =
+      NamedEnum.find(str, MultiMap.values)
   }
 }

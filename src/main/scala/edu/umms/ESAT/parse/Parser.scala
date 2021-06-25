@@ -11,7 +11,7 @@ import java.io.File
 object Parser {
   // Initial parameter setup with defaults to be passed into parser
   private val initParams = Params(
-    task = Task.valueOf(taskDef.toUpperCase),
+    task = Task.find(taskDef),
     outFile = File("ToBeReplaced"),
     inFiles = Seq.empty,
     inExperiment = expDef,
@@ -21,8 +21,8 @@ object Parser {
     windowOverlap = windowOverlapDef,
     windowExtend = windowExtendDef,
     allWindows = allWindowsDef,
-    multimap = MultiMap.valueOf(multiMapDef.toUpperCase),
-    qThresh = None,
+    multimap = MultiMap.find(multiMapDef),
+    qThresh = qThreshDef,
     gMapFile = None,
     pValThresh = pValThreshDef,
     stranded = strandedDef,
@@ -36,9 +36,9 @@ object Parser {
   // note that when readers throw exceptions they are picked up by scopt and cleanly set as parsing errors
   // scopt readers for enumerated values
   implicit val taskRead: scopt.Read[Task] =
-    scopt.Read.reads(s => NamedEnum.find(s, Task.values))
+    scopt.Read.reads(s => Task.find(s))
   implicit val multiMap: scopt.Read[MultiMap] =
-    scopt.Read.reads(s => NamedEnum.find(s, MultiMap.values))
+    scopt.Read.reads(s => MultiMap.find(s))
   // scopt reader for Float (strange this one isn't standard)
   implicit val float: scopt.Read[Float] =
     scopt.Read.reads(s => s.toFloat)
@@ -86,8 +86,8 @@ object Parser {
       ,
       opt[Int]('q', "quality")
         .valueName("<integer>")
-        .action((qual, c) => c.copy(qThresh = Some(qual)))
-        .text("optional minimum alignment quality")
+        .action((qual, c) => c.copy(qThresh = qual))
+        .text(s"optional minimum alignment quality (default $qThreshDef)")
       ,
       opt[Task]('t', "task")
         .valueName("score3p or score5p")
@@ -147,28 +147,28 @@ object Parser {
         .text(s"optional minimum umi count (default $umiMinDef)")
       ,
       help('h', "help").text("prints this usage text"),
-      note("\nNotes:\nEither, but not both, in or alignments must be specified\n"+
-        "Either, but not both, geneMapping or annotation must be specified"),
+      note("\nNotes:\nEither, but not both, --in or --alignments must be specified\n"+
+        "Either, but not both, --geneMapping or --annotation must be specified"),
       checkConfig(
         c =>
           if (c.alignments.isDefined && c.inFiles.nonEmpty)
-            failure("can not specify both in and alignments")
+            failure("can not specify both --in and --alignments")
           else if (c.alignments.isEmpty && c.inFiles.isEmpty)
-            failure("must specifiy either in or alignments")
+            failure("must specifiy either --in or --alignments")
           else if (c.annotationFile.isDefined && c.gMapFile.isDefined)
-            failure("can not specify both annotations and geneMapping")
+            failure("can not specify both --annotations and --geneMapping")
           else if (c.annotationFile.isEmpty && c.gMapFile.isEmpty)
-            failure("must specifiy either annotations or geneMapping")
-          else if (c.qThresh.getOrElse(0) < 0)
-            failure(s"quality (${c.qThresh.get}) must be >= 0")
+            failure("must specifiy either --annotations or --geneMapping")
+          else if (c.qThresh < 0)
+            failure(s"--quality (${c.qThresh}) must be >= 0")
           else if (c.windowLength < 1)
-            failure(s"wLen (${c.windowLength}) must be >= 1")
+            failure(s"--wLen (${c.windowLength}) must be >= 1")
           else if (c.windowOverlap < 0)
-            failure(s"wOverlap (${c.windowOverlap}) must be >= 0")
+            failure(s"--wOverlap (${c.windowOverlap}) must be >= 0")
           else if (c.windowExtend < 0)
-            failure(s"wExtend (${c.windowExtend}) must be >= 0")
+            failure(s"--wExtend (${c.windowExtend}) must be >= 0")
           else if (c.pValThresh == Float.NaN)
-            failure("Invalid floating point number specified for sigTest")
+            failure("Invalid floating point number specified for --sigTest")
           else
             success
       )
