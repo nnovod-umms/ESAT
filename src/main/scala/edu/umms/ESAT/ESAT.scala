@@ -41,11 +41,17 @@ object ESAT {
         Some(s"Error accessing file $file: ${e.getLocalizedMessage}")
     }
 
-  private def canRead(file: File): Option[Error] =
-    if (file.canRead)
+  private def canRead(file: File): Option[Error] = {
+    val path = file.getCanonicalPath
+    if (!file.exists())
+      Some(s"$path not found")
+    else if (!file.isFile)
+      Some(s"$path not a file")
+    else if (file.canRead)
       None
     else
-      Some(s"Can not access ${file.getCanonicalPath}")
+      Some(s"$path not accessible")
+  }
 
   private def getInput(params: Params): Map[String, List[File]] | Error = {
 
@@ -61,15 +67,16 @@ object ESAT {
               // Parse line that should be experimentName<tab>fileName
               val lineContents = trimmedLine.split('\t')
               if (lineContents.size != 2)
-                (filesSoFar, s"Invalid annotation file format: $trimmedLine" +: errsSoFar)
+                (filesSoFar,
+                  errsSoFar :+ s"Invalid line in alignment file (should be experimentName<tab>fileName): $trimmedLine")
               else {
                 val (expName, inFile) = (lineContents(0), lineContents(1))
-                // Make sure file is accessible
+                // Make sure file is accessible and add it to list
                 canRead(inFile) match {
                   case Some(err) =>
-                    (filesSoFar, err +: errsSoFar)
+                    (filesSoFar, errsSoFar :+ err)
                   case None =>
-                    ((expName -> File(inFile)) +: filesSoFar, errsSoFar)
+                    (filesSoFar :+ (expName -> File(inFile)), errsSoFar)
                 }
               }
             }
@@ -105,7 +112,7 @@ object ESAT {
               val source = Source.fromFile(alignmentFile)
               try {
                 val lines = source.getLines()
-                // Get list of experimentName->file
+                // Get map of experimentName->files
                 val (files, errs) = parseAlignments(lines)
                 if (errs.nonEmpty)
                   errs.mkString("\n")

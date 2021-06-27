@@ -2,7 +2,7 @@
 
 The ESAT toolkit is designed for expression analysis of Digital expression (DGE) libraries that target transcript "ends". ESAT takes a set of alignment files (SAM or BAM) with genome alignment coordinates, a file containing transcript coordinates (BED or text file) and outputs read counts for each transcript provided.
 
-The toolkit is implemented in Java and requires version 1.6 or higher. ESAT can be run on a single or multiple samples. When running multiple samples, all samples are processed together and the results reported as a matrix. To handle multiple samples you will need to prepare a file describing the samples indicating the alignment file locations and the experiment condition assigned to each file. (See **Usage Examples** below for a description of the file format.)
+The toolkit is implemented in Scala and requires version 3.0.0 or higher. ESAT can be run on a single or multiple samples. When running multiple samples, all samples are processed together and the results reported as a matrix. To handle multiple samples you will need to prepare a file describing the samples indicating the alignment file locations and the experiment condition assigned to each file. (See **Usage Examples** below for a description of the file format.)
 
 ### To download the latest version of ESAT:
 The latest version of ESAT is in src/java/umms/esatJar/esat.latest.jar in the **develop** branch. To download the latest version, navigate to the jar file (click on *src* above, then *java*, etc.), then click on *esat.jar.latest* and click **Download** to download the binary file.
@@ -26,7 +26,7 @@ Specifies the type of analysis to perform. ESAT supports two types of libraries 
 Points to a transcript annotation file in BED format. If using this option, read alignment start counts will be reported for each transcript listed in the file. So, if a gene has multiple isoforms listed in this file, counts will be reported as if each transcript corresponded to a separate gene.
 ###### &nbsp;&nbsp;&nbsp;&nbsp;OR
 *`-geneMapping <gene-to-transcript mapping file>`*  
-Points to a gene-to-transcript mapping file whose format is described below. If using this option, all transcripts for each gene are collapsed into a single meta-transcript covering all bases contained in any transcript for that gene. This ensures that all isoforms for each gene are represented in the output. The output file references genes by the gene symbol listed in the mapping file, rather than the transcript ID. Instructions for creating a file with the correct format are provided [here](#GeneMapFile).
+Points to a gene-to-transcript mapping file whose format is described below. If using this option, all transcripts for each gene are collapsed into a single meta-transcript covering all bases contained in any transcript for that gene. This ensures that all isoforms for each gene are represented in the output. The output file references genes by the gene symbol listed in the mapping file, rather than the transcript ID. Instructions for creating a file with the correct format are provided [here](#Gene-to-transcript).
 
 ##### Input alignment file(s):
 *`-in <BAM/SAM file>`*  
