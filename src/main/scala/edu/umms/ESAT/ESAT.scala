@@ -9,7 +9,8 @@ import java.io.File
 import scala.io.Source
 
 object ESAT {
-  opaque type Error = String
+  // Make type for errors
+  opaque private type Error = String
   /**
    * Start of ESAT program.
    * @param args program arguments.
@@ -33,6 +34,11 @@ object ESAT {
     }
   }
 
+  /**
+   * Check that we can read a file.
+   * @param file file specification of file to be read
+   * @return None if ok, otherwise Some(errorMessage)
+   */
   private def canRead(file: String): Option[Error] =
     try {
       canRead(File(file))
@@ -41,7 +47,13 @@ object ESAT {
         Some(s"Error accessing file $file: ${e.getLocalizedMessage}")
     }
 
+  /**
+   * Check that we can read a file.
+   * @param file file to be read
+   * @return None if ok, otherwise Some(errorMessage)
+   */
   private def canRead(file: File): Option[Error] = {
+    // Get path for error messages
     val path = file.getCanonicalPath
     if (!file.exists())
       Some(s"$path not found")
@@ -53,25 +65,38 @@ object ESAT {
       Some(s"$path not accessible")
   }
 
+  /**
+   * Get input bam files.
+   * @param params input parameters
+   * @return map of experimentName->bamFiles
+   */
   private def getInput(params: Params): Map[String, List[File]] | Error = {
 
+    /**
+     * Parse alignment file with lines:
+     * experimentName/tab/bamFileSpecification
+     * If any lines have an invalid format or files can't be accessed an error is returned.
+     * @param lines alignment file input
+     * @return (map of experimentName->bamFiles, listOfFileAccessErrors)
+     */
     def parseAlignments(lines: Iterator[String]): (Map[String, List[File]], List[Error]) = {
       // Get list of experimentName->file (saving errors along the way)
       val (files, errs) = lines.foldLeft((List.empty[(String, File)], List.empty[Error])) {
           case ((filesSoFar, errsSoFar), line) =>
             // Trim line of leading and trailing blank space
             val trimmedLine = line.trim
+            // Ignore comment (lines starting with #) or blank lines
             if (trimmedLine.isEmpty || trimmedLine.startsWith("#"))
               (filesSoFar, errsSoFar)
             else {
               // Parse line that should be experimentName<tab>fileName
               val lineContents = trimmedLine.split('\t')
-              if (lineContents.size != 2)
+              if (lineContents.size != 2 || lineContents(0).isEmpty || lineContents(1).isEmpty)
                 (filesSoFar,
                   errsSoFar :+ s"Invalid line in alignment file (should be experimentName<tab>fileName): $trimmedLine")
               else {
                 val (expName, inFile) = (lineContents(0), lineContents(1))
-                // Make sure file is accessible and add it to list
+                // Make sure file is accessible and add it to list (add to error list if not accessible)
                 canRead(inFile) match {
                   case Some(err) =>
                     (filesSoFar, errsSoFar :+ err)
