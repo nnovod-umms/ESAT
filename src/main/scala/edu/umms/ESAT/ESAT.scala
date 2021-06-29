@@ -2,6 +2,7 @@ package edu.umms.ESAT
 
 import edu.umms.ESAT.parse
 import edu.umms.ESAT.parse.Params
+import edu.umms.ESAT.utils.Types._
 import org.apache.log4j.{BasicConfigurator, LogManager, Logger}
 import scopt.OParser
 
@@ -9,8 +10,6 @@ import java.io.File
 import scala.io.Source
 
 object ESAT {
-  // Make type for errors
-  opaque private type Error = String
   /**
    * Start of ESAT program.
    * @param args program arguments.
@@ -44,7 +43,7 @@ object ESAT {
       canRead(File(file))
     } catch {
       case e =>
-        Some(s"Error accessing file $file: ${e.getLocalizedMessage}")
+        Some(Error(s"Error accessing file $file: ${e.getLocalizedMessage}"))
     }
 
   /**
@@ -56,13 +55,13 @@ object ESAT {
     // Get path for error messages
     val path = file.getCanonicalPath
     if (!file.exists())
-      Some(s"$path not found")
+      Some(Error(s"$path not found"))
     else if (!file.isFile)
-      Some(s"$path not a file")
+      Some(Error(s"$path not a file"))
     else if (file.canRead)
       None
     else
-      Some(s"$path not accessible")
+      Some(Error(s"$path not accessible"))
   }
 
   /**
@@ -93,7 +92,7 @@ object ESAT {
               val lineContents = trimmedLine.split('\t')
               if (lineContents.size != 2 || lineContents(0).isEmpty || lineContents(1).isEmpty)
                 (filesSoFar,
-                  errsSoFar :+ s"Invalid line in alignment file (should be experimentName<tab>fileName): $trimmedLine")
+                  errsSoFar :+ Error(s"Invalid line in alignment file (should be experimentName<tab>fileName): $trimmedLine"))
               else {
                 val (expName, inFile) = (lineContents(0), lineContents(1))
                 // Make sure file is accessible and add it to list (add to error list if not accessible)
@@ -121,7 +120,7 @@ object ESAT {
       // If any files can't be read return error, otherwise return wanted map
       params.inFiles.flatMap(canRead) match {
         case Seq() => Map(params.inExperiment -> params.inFiles.toList)
-        case errs => errs.mkString("\n")
+        case errs => Error(errs.mkString("\n"))
       }
     } else {
       // Input files must be set in alignments file with format
@@ -140,7 +139,7 @@ object ESAT {
                 // Get map of experimentName->files
                 val (files, errs) = parseAlignments(lines)
                 if (errs.nonEmpty)
-                  errs.mkString("\n")
+                  Error(errs.mkString("\n"))
                 else
                   files
               } finally {
@@ -148,7 +147,7 @@ object ESAT {
               }
           }
         case _ =>
-          s"No input files found"
+          Error(s"No input files found")
       }
     }
   }
