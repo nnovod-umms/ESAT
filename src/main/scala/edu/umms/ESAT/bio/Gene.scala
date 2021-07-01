@@ -172,35 +172,6 @@ object Gene {
   }
 
   /**
-   * Construct old Gene class.  Same as Java Gene constructor...
-   * public Gene(String chr, int start, int end, String name, String orientation, List<Integer> exonsStart, List<Integer> exonsEnd)
-   * @param chr chromosome
-   * @param start starting location within chromosome
-   * @param end ending location within chromosome
-   * @param name transcription name
-   * @param orientation orientation (+ or -)
-   * @param exonStarts list of exon starts (must match up with exonEnds)
-   * @param exonEnds list of exon ends (must match up with exonStarts)
-   * @return java Gene class instance
-   */
-  def makeJavaGene(
-    chr: String,
-    start: Int,
-    end: Int,
-    name: String,
-    orientation: String,
-    exonsStart: List[Int],
-    exonsEnd: List[Int]
-  ): umms.core.annotation.Gene = {
-    // Little helper method to do awkward conversion of scala List[Int] to java List[Integer]
-    def getJavaIntList(list: List[Int]) = list.map(java.lang.Integer.valueOf).asJava
-
-    new umms.core.annotation.Gene(
-      chr, start, end, name, orientation, getJavaIntList(exonsStart), getJavaIntList(exonsEnd)
-    )
-  }
-
-  /**
    * Compare the locations of two genes.
    * @param x first gene
    * @param y second gene
@@ -247,5 +218,34 @@ object Gene {
           else
             compareExons(x.tail, y.tail)
     }
+  }
+
+  /**
+   * Construct old Gene class.  Same as Java Gene constructor...
+   * public Gene(String chr, int start, int end, String name, String orientation, List<Integer> exonsStart, List<Integer> exonsEnd)
+   * @param chr chromosome
+   * @param start starting location within chromosome
+   * @param end ending location within chromosome
+   * @param name transcription name
+   * @param orientation orientation (+ or -)
+   * @param exonStarts list of exon starts (must match up with exonEnds)
+   * @param exonEnds list of exon ends (must match up with exonStarts)
+   * @return java Gene class instance
+   */
+  def makeJavaGene(
+                    chr: String,
+                    start: Int,
+                    end: Int,
+                    name: String,
+                    orientation: String,
+                    exonsStart: List[Int],
+                    exonsEnd: List[Int]
+                  ): umms.core.annotation.Gene = {
+    // Little helper method to do awkward conversion of scala List[Int] to java List[Integer]
+    def getJavaIntList(list: List[Int]) = list.map(java.lang.Integer.valueOf).asJava
+
+    new umms.core.annotation.Gene(
+      chr, start, end, name, orientation, getJavaIntList(exonsStart), getJavaIntList(exonsEnd)
+    )
   }
 }

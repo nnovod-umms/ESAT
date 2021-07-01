@@ -10,8 +10,7 @@ import scopt.OParser
 
 import java.io.File
 import scala.collection.JavaConverters._
-import scala.collection.immutable.SortedSet
-import scala.collection.immutable.HashMap
+import scala.collection.immutable.{HashMap, SortedSet, TreeMap}
 import scala.io.Source
 
 object ESAT {
@@ -31,6 +30,7 @@ object ESAT {
         // Parse was successful - now go do the work
         println(s"$params")
         println(s"${getInput(params)}")
+        println(s"${parseGeneMapping(File("NoWay"))}")
         val g1 = Gene("a", 1, 5, "b", "+", List(1, 2, 3, 4), List(2, 3, 4, 5))
         val g2 = Gene("a", 1, 5, "b", "+", List(1, 2, 3, 4), List(2, 3, 4, 5))
         println(g1.mergeExons(g2))
@@ -137,70 +137,103 @@ object ESAT {
   /**
    * Parse gene mapping file.
    * @param file Gene mapping file
-   * @return
+   * @return TreeMap(chr -> SortedSet[Gene]) or ErrorStr
    */
-  private def parseGeneMapping(file: File): Map[String, Gene] | ErrorStr = {
+  private def parseGeneMapping(file: File): TreeMap[String, SortedSet[Gene]] | ErrorStr = {
     // Mapping file headers
     val geneMappingHeaders =
       Array("name2", "chrom", "txStart", "txEnd", "name", "strand", "exonStarts", "exonEnds")
     // Make symbols from headers
-    val
-    (
+    val (
       geneSymbol: String, chrom: String,
       txStart: String, txEnd: String, txID: String,
       strand: String, exonStarts: String, exonEnds: String
     ) = Tuple.fromArray(geneMappingHeaders)
     // Go read in file to make map of genes found
-    ReaderWithHeader.foldFile(
-      file = file, headersNeeded = geneMappingHeaders, init = Map.empty[String, Gene], sep = "\t"
-    ) {
-      (soFar, newLine, headerIndicies) =>
-        // Some little helper methods
-        @inline
-        def getField(fieldName: String): String = newLine(headerIndicies(fieldName))
-        @inline
-        def getIntList(fieldName: String) =
-          getField(fieldName).split(",").map(_.toInt).toList
+    val chrTreeWithGenes =
+      ReaderWithHeader.foldFile(
+        file = file, headersNeeded = geneMappingHeaders, init = TreeMap.empty[String, Map[String, Gene]], sep = "\t"
+      ) {
+        (soFar, newLine, headerIndicies) =>
+          // Some little helper methods
+          @inline
+          def getField(fieldName: String): String = newLine(headerIndicies(fieldName))
+          @inline
+          def getIntList(fieldName: String) =
+            getField(fieldName).split(",").map(_.toInt).toList
 
-        // Make new Gene object
-        // @TODO name set to transcript ID.  Unclear if that or geneName is wanted.  In old ESAT it's first set
-        // to txID but then always changed to geneName.  ESAT also sets isoForms with extra entries that match, but
-        // getIsoforms method gets both extra entries and original entry, but ESAT itself sets the isoForms in
-        // combined entries to be the original entry plus others (so getIsoforms will get back original entry
-        // twice).  In a word, isoForms is a mess but maybe we don't even need it.  Also there's a bug in the
-        // Java version of Gene that sets both start and end to start when Gene entries were merged (via union) so
-        // it's unclear how important start/end is.
-        val newGene =
-          Gene(
-            chr = getField(chrom),
-            start = getField(txStart).toInt, end = getField(txEnd).toInt,
-            name = getField(txID), orientation = getField(strand),
-            exonStarts = getIntList(exonStarts), exonEnds = getIntList(exonEnds)
-          )
-        // Get key (geneName)
-        val geneName = getField(geneSymbol)
-        // Set Gene in map we're building
-        soFar.get(geneName) match {
-          // If already there then add new entry with merge of exons
-          case Some(foundGene) =>
-            if (newGene.chr == foundGene.chr && newGene.orientation == foundGene.orientation) {
-              val (newStart, newEnd, newExons) = foundGene.mergeExons(newGene)
-              val startToSet = if (newExons.isEmpty) foundGene.start else newStart
-              val endToSet = if (newExons.isEmpty) foundGene.end else newEnd
-              val isoForms = foundGene.isoForms + newGene
-              soFar +
-                (geneName -> foundGene.copy(start = startToSet, end = endToSet, exons = newExons, isoForms = isoForms))
-            } else {
-              // If not same chromosome and orientation then ignore it and issue a warning
-              logger.warn(s"Isoform mismatch found for $geneName (${foundGene.chr}${foundGene.orientation}) with "+
-                s"${newGene.name} (${newGene.chr}${newGene.orientation})")
-              soFar
-            }
-          // If new entry then make new entry in map
-          case None =>
-            val topGene = newGene.copy(name = geneName, isoForms = SortedSet(newGene))
-            soFar + (geneName -> topGene)
+          // Get chromosome (key for Treemap)
+          val chr = getField(chrom)
+          // Get geneName (key for map of Genes)
+          val geneName = getField(geneSymbol)
+          // Make new Gene object
+          // @TODO name set to transcript ID.  Unclear if that or geneName is wanted.  In old ESAT it's first set
+          // to txID but then always changed to geneName.  ESAT also sets isoForms with extra entries that match, but
+          // getIsoforms method gets both extra entries and original entry, but ESAT itself sets the isoForms in
+          // combined entries to be the original entry plus others (so getIsoforms will get back original entry
+          // twice).  In a word, isoForms is a mess but maybe we don't even need it.  Also there's a bug in the
+          // Java version of Gene that sets both start and end to start when Gene entries were merged (via union) so
+          // it's unclear how important start/end is.
+          val newGene =
+            Gene(
+              chr = chr,
+              start = getField(txStart).toInt, end = getField(txEnd).toInt,
+              name = getField(txID), orientation = getField(strand),
+              exonStarts = getIntList(exonStarts), exonEnds = getIntList(exonEnds)
+            )
+
+          // See if chromsome already in tree
+          soFar.get(chr) match {
+            // New chromosome - init it with map of new entry
+            case None =>
+              val topGene = newGene.copy(name = geneName, isoForms = SortedSet(newGene))
+              soFar + (chr -> Map(geneName -> topGene))
+            case Some(chrEntries) =>
+              // Chrosome already there - Look for gene
+              chrEntries.get(geneName) match {
+                // If gene already there then add new entry with merge of previous genes
+                case Some(foundGene) =>
+                  if (newGene.chr == foundGene.chr && newGene.orientation == foundGene.orientation) {
+                    val (newStart, newEnd, newExons) = foundGene.mergeExons(newGene)
+                    val startToSet = if (newExons.isEmpty) foundGene.start else newStart
+                    val endToSet = if (newExons.isEmpty) foundGene.end else newEnd
+                    val isoForms = foundGene.isoForms + newGene
+                    val mergedGene =
+                      foundGene.copy(start = startToSet, end = endToSet, exons = newExons, isoForms = isoForms)
+                    soFar + (chr -> (chrEntries + (geneName -> mergedGene)))
+                  } else {
+                    // If not same orientation then ignore it and issue a warning
+                    logger.warn(s"Isoform mismatch found for $geneName (${foundGene.chr}${foundGene.orientation}) with "+
+                      s"${newGene.name} (${newGene.chr}${newGene.orientation})")
+                    soFar
+                  }
+                // If new gene then add new entry into gene map
+                case None =>
+                  val topGene = newGene.copy(name = geneName, isoForms = SortedSet(newGene))
+                  soFar + (chr -> (chrEntries + (geneName -> topGene)))
+              }
+          }
+      }
+
+    // Finish up by converting the gene map into a sorted set
+    chrTreeWithGenes match {
+      // Successfully made TreeMap
+      case _ : TreeMap[_, _] =>
+        val t = chrTreeWithGenes.asInstanceOf[TreeMap[String, Map[String, Gene]]]
+        t.map {
+          case (key, value) => key -> SortedSet(value.values.toSeq:_*)
         }
+      // Error
+      case e => e.asInstanceOf[ErrorStr]
     }
   }
+
+  /*
+  private def GeneMappingToAnnotation(genes: Map[String, Gene]): TreeMap[String, SortedSet[Gene]] = {
+    val byChr = genes.groupBy(_._2.chr).map{
+      case (chr, genes) => chr -> SortedSet(genes.values.toSeq:_*)
+    }
+    TreeMap(byChr.toSeq:_*)
+  }
+  */
 }
