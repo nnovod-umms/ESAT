@@ -36,6 +36,7 @@ object ESAT {
         println(g1.mergeExons(g2))
         val g3 = Gene("a", 1, 25, "b", "+", List(1, 20, 5, 10), List(2, 25, 10, 19))
         val g4 = Gene("a", 1, 50, "b", "+", List(1, 30, 10, 40), List(7, 40, 11, 50))
+        println(g4.copy(isoForms = SortedSet(g1, g2, g3, g4)))
         println(g3.mergeExons(g4))
         logger.info(s"Total processing time: ${(System.nanoTime() - startTime )/ 1e9} sec\n")
       case _ =>

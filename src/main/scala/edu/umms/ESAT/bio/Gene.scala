@@ -1,10 +1,10 @@
 package edu.umms.ESAT.bio
 
-import scala.collection.immutable.SortedSet
-import scala.collection.JavaConverters._
 import Gene._
 import org.apache.log4j.{LogManager, Logger}
 
+import scala.collection.immutable.SortedSet
+import scala.collection.JavaConverters._
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
 
@@ -26,7 +26,7 @@ case class Gene
   name: String,
   orientation: String,
   exons: SortedSet[(Int, Int)],
-  isoForms: SortedSet[Gene] = SortedSet.empty[Gene] // Needed?
+  isoForms: SortedSet[Gene] = SortedSet.empty[Gene] // IsoForms Needed?
 ) {
   /**
    * Merge together two exon sets.  Combine them into one set and then combine overlapping exons within the set.
@@ -96,15 +96,15 @@ object Gene {
   private def exonListToSortedSet(exons: List[(Int, Int)]): SortedSet[(Int, Int)] = SortedSet(exons:_*)
 
   /**
-   * Constructor with lists of exon starts/ends.  Starts/ends are converted into an exon set and then the normal
+   * Constructor with lists of exon starts/ends.  exonStarts/exonEnds are converted into an exon set and then the normal
    * constructor is called.
    * @param chr chromosome
-   * @param start starting location within chromosome
-   * @param end ending location within chromosome
+   * @param start starting location within chromosome (just used to check exons start, ignored if 0)
+   * @param end ending location within chromosome (just used to check exons end, ignored if 0)
    * @param name transcription name
    * @param orientation orientation (+ or -)
-   * @param exonStarts list of exon starts (must match up with exonEnds)
-   * @param exonEnds list of exon ends (must match up with exonStarts)
+   * @param exonStarts list of exon starts (must have same lenth as exonEnds)
+   * @param exonEnds list of exon ends (must have same length as exonEnds)
    * @return Gene with input settings
    */
   def apply(
@@ -242,9 +242,9 @@ object Gene {
           startC
         else
           val endC = xNext._2.compareTo(yNext._2)
-          if (endC != 0) {
+          if (endC != 0)
             endC
-          } else
+          else
             compareExons(x.tail, y.tail)
     }
   }
