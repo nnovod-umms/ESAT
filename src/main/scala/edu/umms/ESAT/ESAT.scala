@@ -31,11 +31,11 @@ object ESAT {
         // Parse was successful - now go do the work
         println(s"$params")
         println(s"${getInput(params)}")
-        val g1 = Gene("a", 1, 2, "b", "+", List(1, 2, 3, 4), List(2, 3, 4, 5))
-        val g2 = Gene("a", 1, 2, "b", "+", List(1, 2, 3, 4), List(2, 3, 4, 5))
+        val g1 = Gene("a", 1, 5, "b", "+", List(1, 2, 3, 4), List(2, 3, 4, 5))
+        val g2 = Gene("a", 1, 5, "b", "+", List(1, 2, 3, 4), List(2, 3, 4, 5))
         println(g1.mergeExons(g2))
-        val g3 = Gene("a", 1, 2, "b", "+", List(1, 20, 5, 10), List(2, 25, 10, 19))
-        val g4 = Gene("a", 1, 2, "b", "+", List(1, 30, 10, 40), List(7, 40, 11, 50))
+        val g3 = Gene("a", 1, 25, "b", "+", List(1, 20, 5, 10), List(2, 25, 10, 19))
+        val g4 = Gene("a", 1, 50, "b", "+", List(1, 30, 10, 40), List(7, 40, 11, 50))
         println(g3.mergeExons(g4))
         logger.info(s"Total processing time: ${(System.nanoTime() - startTime )/ 1e9} sec\n")
       case _ =>
@@ -162,6 +162,13 @@ object ESAT {
           getField(fieldName).split(",").map(_.toInt).toList
 
         // Make new Gene object
+        // @TODO name set to transcript ID.  Unclear if that or geneName is wanted.  In old ESAT it's first set
+        // to txID but then always changed to geneName.  ESAT also sets isoForms with extra entries that match, but
+        // getIsoforms method gets both extra entries and original entry, but ESAT itself sets the isoForms in
+        // combined entries to be the original entry plus others (so getIsoforms will get back original entry
+        // twice).  In a word, isoForms is a mess but maybe we don't even need it.  Also there's a bug in the
+        // Java version of Gene that sets both start and end to start when Gene entries were merged (via union) so
+        // it's unclear how important start/end is.
         val newGene =
           Gene(
             chr = getField(chrom),
@@ -175,15 +182,13 @@ object ESAT {
         soFar.get(geneName) match {
           // If already there then add new entry with merge of exons
           case Some(foundGene) =>
-            // @TODO set Gene name to geneName?  Originally set to txID but changed to geneName in old ESAT for
-            // top Gene (even if there are no isoforms)
-            // @TODO BUT old ESAT has isoforms where all the original Genes (including top) are saved if more than one
             if (newGene.chr == foundGene.chr && newGene.orientation == foundGene.orientation) {
               val (newStart, newEnd, newExons) = foundGene.mergeExons(newGene)
-              // @TODO old ESAT didn't change start/end - hard to believe that was right
               val startToSet = if (newExons.isEmpty) foundGene.start else newStart
               val endToSet = if (newExons.isEmpty) foundGene.end else newEnd
-              soFar + (geneName -> foundGene.copy(start = startToSet, end = endToSet, exons = newExons))
+              val isoForms = foundGene.isoForms + newGene
+              soFar +
+                (geneName -> foundGene.copy(start = startToSet, end = endToSet, exons = newExons, isoForms = isoForms))
             } else {
               // If not same chromosome and orientation then ignore it and issue a warning
               logger.warn(s"Isoform mismatch found for $geneName (${foundGene.chr}${foundGene.orientation}) with "+
@@ -192,7 +197,8 @@ object ESAT {
             }
           // If new entry then make new entry in map
           case None =>
-            soFar + (geneName -> newGene)
+            val topGene = newGene.copy(name = geneName, isoForms = SortedSet(newGene))
+            soFar + (geneName -> topGene)
         }
     }
   }
