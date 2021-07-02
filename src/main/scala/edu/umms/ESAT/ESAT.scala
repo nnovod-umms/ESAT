@@ -228,7 +228,7 @@ object ESAT {
     }
   }
 
-  /*
+  /* If we don't build TreeMap in first pass...
   private def GeneMappingToAnnotation(genes: Map[String, Gene]): TreeMap[String, SortedSet[Gene]] = {
     val byChr = genes.groupBy(_._2.chr).map{
       case (chr, genes) => chr -> SortedSet(genes.values.toSeq:_*)

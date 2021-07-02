@@ -34,17 +34,16 @@ case class Gene
    * @param other other Gene to get exons from
    * @return (minimumExonStart, maximumExonEnd, merged set of exons)
    */
-  def mergeExons(other: Gene): (Int, Int, SortedSet[(Int, Int)]) = {
-    if (chr != other.chr || orientation != other.orientation) {
+  def mergeExons(other: Gene): (Int, Int, SortedSet[(Int, Int)]) =
+    if (chr != other.chr || orientation != other.orientation)
       logger.error(s"Request to merge incompatible exons ($chr/$orientation vs. ${other.chr}/${other.orientation}")
       (start, end, exons)
-    } else {
+    else
       // Get merged set
       val mergedSet = exons ++ other.exons
       // Return with overlapping exons folded together
       foldExons(mergedSet)
-    }
-  }
+    end if
 }
 
 /**
@@ -70,13 +69,12 @@ object Gene {
             listBuf.lastOption match {
               // List has contents - look at last entry to see if new one overlaps
               case Some(last) =>
-                if (next._1 > last._2) {
+                if (next._1 > last._2)
                   // No overlap
                   listBuf.addOne(next)
-                } else {
+                else
                   // Overlap - modify last one to include new one
                   listBuf.update(listBuf.length - 1, (last._1, Integer.max(last._2, next._2)))
-                }
                 listBuf
               // List empty - set first entry
               case None =>
@@ -87,13 +85,6 @@ object Gene {
       }
     (minLoc, maxLoc, exonListToSortedSet(mergedList.toList))
   }
-
-  /**
-   * Convert a list of exons into a sorted set
-   * @param exons exon list
-   * @return exon set
-   */
-  private def exonListToSortedSet(exons: List[(Int, Int)]): SortedSet[(Int, Int)] = SortedSet(exons:_*)
 
   /**
    * Constructor with lists of exon starts/ends.  exonStarts/exonEnds are converted into an exon set and then the normal
@@ -116,26 +107,26 @@ object Gene {
              exonStarts: List[Int],
              exonEnds: List[Int]
            ): Gene = {
+    // Get exons into one list of (start, end)
     val exons =
-      if (exonStarts.length != exonEnds.length) {
+      if (exonStarts.length != exonEnds.length)
         logger.warn(s"Differing number of exon starts and ends (starts: $exonStarts; ends: $exonEnds)")
         val min = Integer.min(exonStarts.length, exonEnds.length)
         exonStarts.take(min).zip(exonEnds.take(min))
-      } else
+      else
         exonStarts.zip(exonEnds)
+
+    // Get minimun start and maximun end for all exons and fold overlapping exons together
     val (geneStart, geneEnd, geneExons) =
       if (exons.isEmpty)
         (start, end, SortedSet.empty[(Int, Int)])
-      else {
+      else
         val (exonStart, exonEnd, sortedExons) = foldExons(exonListToSortedSet(exons))
-        if ((exonStart != start && start != 0) || (exonEnd != end && end != 0)) {
+        if ((exonStart != start && start != 0) || (exonEnd != end && end != 0))
           logger.warn(
             s"Gene $name has inconsistent start/end vs. exons start/end ($start,$end vs. $exonStart,$exonEnd)"
           )
-        }
         (exonStart, exonEnd, sortedExons)
-      }
-
 
     // Make new Gene object
     Gene(
@@ -145,6 +136,13 @@ object Gene {
       exons = geneExons
     )
   }
+
+  /**
+   * Convert a list of exons into a sorted set
+   * @param exons exon list
+   * @return exon set
+   */
+  private def exonListToSortedSet(exons: List[(Int, Int)]) = SortedSet(exons:_*)
 
   /**
    * Ordering interface for Genes
@@ -160,14 +158,12 @@ object Gene {
       val locC = compareLoci(x, y)
       if (locC != 0)
         locC
-      else {
+      else
         val exonSizeC = x.exons.size.compareTo(y.exons.size)
         if (exonSizeC != 0)
           exonSizeC
-        else {
+        else
           compareExons(x.exons, y.exons)
-        }
-      }
     }
   }
 
