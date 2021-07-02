@@ -20,11 +20,11 @@ object ESAT {
    * Start of ESAT program.
    * @param args program arguments.
    */
-  def main(args: Array[String]) = {
+  def main(args: Array[String]) =
     // Setup basic configuration for logger
     BasicConfigurator.configure()
     // Go parse input
-    parse.Parser.doParse(args) match {
+    parse.Parser.doParse(args) match
       case Some(params) =>
         val startTime = System.nanoTime()
         // Parse was successful - now go do the work
@@ -42,27 +42,26 @@ object ESAT {
       case _ =>
         // Parse failed, error message will have been displayed
         System.exit(1)
-    }
-  }
+    end match
+  end main
 
   /**
    * Get input bam files.
    * @param params input parameters
    * @return map of experimentName->bamFiles
    */
-  private def getInput(params: Params): Map[String, List[File]] | ErrorStr = {
-
+  private def getInput(params: Params): Map[String, List[File]] | ErrorStr =
     // If list of input files then check we can read them all and return map of expermientName -> files
-    if (params.inFiles.nonEmpty) {
+    if (params.inFiles.nonEmpty)
       // If any files can't be read return error, otherwise return wanted map
-      params.inFiles.flatMap(Files.canRead) match {
+      params.inFiles.flatMap(Files.canRead) match
         case Seq() => Map(params.inExperiment -> params.inFiles.toList)
         case errs => Types.error(errs.mkString("\n"))
-      }
-    } else {
+      end match
+    else
       // Input files must be set in alignments file with format
       // experimentName<tab>inputFile
-      params.alignments match {
+      params.alignments match
         case Some(alignmentFile) =>
           // Check if alignment file accessible
           Files.canRead(alignmentFile) match {
@@ -83,9 +82,9 @@ object ESAT {
           }
         case _ =>
           Types.error(s"No input files found")
-      }
-    }
-  }
+      end match
+    end if
+  end getInput
 
   /**
    * Parse alignment file with lines:
@@ -94,7 +93,7 @@ object ESAT {
    * @param lines alignment file input
    * @return (map of experimentName->bamFiles, listOfFileAccessErrors)
    */
-  private def parseAlignments(lines: Iterator[String]): (Map[String, List[File]], List[ErrorStr]) = {
+  private def parseAlignments(lines: Iterator[String]): (Map[String, List[File]], List[ErrorStr]) =
     // Get list of experimentName->file (saving errors along the way)
     val (files, errs) = lines.foldLeft((List.empty[(String, File)], List.empty[ErrorStr])) {
       case ((filesSoFar, errsSoFar), line) =>
@@ -103,7 +102,7 @@ object ESAT {
         // Ignore comment (lines starting with #) or blank lines
         if (trimmedLine.isEmpty || trimmedLine.startsWith("#"))
           (filesSoFar, errsSoFar)
-        else {
+        else
           // Parse line that should be experimentName<tab>fileName
           val lineContents = trimmedLine.split('\t')
           if (lineContents.size != 2 || lineContents(0).isEmpty || lineContents(1).isEmpty)
@@ -112,17 +111,17 @@ object ESAT {
                 s"Invalid line in alignment file (should be experimentName<tab>fileName): $trimmedLine"
               )
             )
-          else {
+          else
             val (expName, inFile) = (lineContents(0), lineContents(1))
             // Make sure file is accessible and add it to list (add to error list if not accessible)
-            Files.canRead(inFile) match {
+            Files.canRead(inFile) match
               case Some(err) =>
                 (filesSoFar, errsSoFar :+ err)
               case None =>
                 (filesSoFar :+ (expName -> File(inFile)), errsSoFar)
-            }
-          }
-        }
+            end match
+          end if
+        end if
     }
     // Group file by experiment name and return map of experimentName->files
     val filesByExp = files.groupBy {
@@ -132,14 +131,14 @@ object ESAT {
         exp -> files.map(_._2)
     }
     (filesByExp, errs)
-  }
+  end parseAlignments
 
   /**
    * Parse gene mapping file.
    * @param file Gene mapping file
    * @return TreeMap(chr -> SortedSet[Gene]) or ErrorStr
    */
-  private def parseGeneMapping(file: File): TreeMap[String, SortedSet[Gene]] | ErrorStr = {
+  private def parseGeneMapping(file: File): TreeMap[String, SortedSet[Gene]] | ErrorStr =
     // Mapping file headers
     val geneMappingHeaders =
       Array("name2", "chrom", "txStart", "txEnd", "name", "strand", "exonStarts", "exonEnds")
@@ -183,17 +182,17 @@ object ESAT {
             )
 
           // See if chromsome already in tree
-          soFar.get(chr) match {
+          soFar.get(chr) match
             // New chromosome - init it with map of new entry
             case None =>
               val topGene = newGene.copy(name = geneName, isoForms = SortedSet(newGene))
               soFar + (chr -> Map(geneName -> topGene))
             case Some(chrEntries) =>
               // Chrosome already there - Look for gene
-              chrEntries.get(geneName) match {
+              chrEntries.get(geneName) match
                 // If gene already there then add new entry with merge of previous genes
                 case Some(foundGene) =>
-                  if (newGene.chr == foundGene.chr && newGene.orientation == foundGene.orientation) {
+                  if (newGene.chr == foundGene.chr && newGene.orientation == foundGene.orientation)
                     val (newStart, newEnd, newExons) = foundGene.mergeExons(newGene)
                     val startToSet = if (newExons.isEmpty) foundGene.start else newStart
                     val endToSet = if (newExons.isEmpty) foundGene.end else newEnd
@@ -201,22 +200,22 @@ object ESAT {
                     val mergedGene =
                       foundGene.copy(start = startToSet, end = endToSet, exons = newExons, isoForms = isoForms)
                     soFar + (chr -> (chrEntries + (geneName -> mergedGene)))
-                  } else {
+                  else
                     // If not same orientation then ignore it and issue a warning
                     logger.warn(s"Isoform mismatch found for $geneName (${foundGene.chr}${foundGene.orientation}) with "+
                       s"${newGene.name} (${newGene.chr}${newGene.orientation})")
                     soFar
-                  }
+                  end if
                 // If new gene then add new entry into gene map
                 case None =>
                   val topGene = newGene.copy(name = geneName, isoForms = SortedSet(newGene))
                   soFar + (chr -> (chrEntries + (geneName -> topGene)))
-              }
-          }
+              end match
+          end match
       }
 
     // Finish up by converting the gene map into a sorted set
-    chrTreeWithGenes match {
+    chrTreeWithGenes match
       // Successfully made TreeMap
       case _ : TreeMap[_, _] =>
         val t = chrTreeWithGenes.asInstanceOf[TreeMap[String, Map[String, Gene]]]
@@ -225,8 +224,8 @@ object ESAT {
         }
       // Error
       case e => e.asInstanceOf[ErrorStr]
-    }
-  }
+    end match
+  end parseGeneMapping
 
   /* If we don't build TreeMap in first pass...
   private def GeneMappingToAnnotation(genes: Map[String, Gene]): TreeMap[String, SortedSet[Gene]] = {

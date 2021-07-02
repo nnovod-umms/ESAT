@@ -8,8 +8,7 @@ import scala.annotation.tailrec
 import scala.io.Source
 
 /**
- * Methods to read in files
- * Note: Uses new scala 3.0 indentation/end syntax in place of {}
+ * Methods to read in files.
  */
 object Reader {
   /**

@@ -14,9 +14,10 @@ object Control {
    * @return output of callback
    */
   def using[I <: { def close(): Unit }, O](resource: I)(f: I => O): O =
-    try {
+    try
       f(resource)
-    } finally {
+    finally
       resource.close()
-    }
+    end try
+  end using
 }

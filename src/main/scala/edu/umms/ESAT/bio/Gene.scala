@@ -44,6 +44,7 @@ case class Gene
       // Return with overlapping exons folded together
       foldExons(mergedSet)
     end if
+  end mergeExons
 }
 
 /**
@@ -58,7 +59,7 @@ object Gene {
    * @param exons input set of exons
    * @return (minExonStart, maxExonEnd, foldedSetOfExons)
    */
-  private def foldExons(exons: SortedSet[(Int, Int)]) = {
+  private def foldExons(exons: SortedSet[(Int, Int)]) =
     // Fold set to get min/max location and merge exons
     val (minLoc, maxLoc, mergedList) =
       exons.toList.foldLeft((Integer.MAX_VALUE, Integer.MIN_VALUE, ListBuffer.empty[(Int, Int)])) {
@@ -75,6 +76,7 @@ object Gene {
                 else
                   // Overlap - modify last one to include new one
                   listBuf.update(listBuf.length - 1, (last._1, Integer.max(last._2, next._2)))
+                end if
                 listBuf
               // List empty - set first entry
               case None =>
@@ -84,7 +86,7 @@ object Gene {
           (Integer.min(minSoFar, next._1), Integer.max(maxSoFar, next._2), exonList)
       }
     (minLoc, maxLoc, exonListToSortedSet(mergedList.toList))
-  }
+  end foldExons
 
   /**
    * Constructor with lists of exon starts/ends.  exonStarts/exonEnds are converted into an exon set and then the normal
@@ -106,7 +108,7 @@ object Gene {
              orientation: String,
              exonStarts: List[Int],
              exonEnds: List[Int]
-           ): Gene = {
+           ): Gene =
     // Get exons into one list of (start, end)
     val exons =
       if (exonStarts.length != exonEnds.length)
@@ -115,6 +117,7 @@ object Gene {
         exonStarts.take(min).zip(exonEnds.take(min))
       else
         exonStarts.zip(exonEnds)
+      end if
 
     // Get minimun start and maximun end for all exons and fold overlapping exons together
     val (geneStart, geneEnd, geneExons) =
@@ -126,7 +129,9 @@ object Gene {
           logger.warn(
             s"Gene $name has inconsistent start/end vs. exons start/end ($start,$end vs. $exonStart,$exonEnd)"
           )
+        end if
         (exonStart, exonEnd, sortedExons)
+      end if
 
     // Make new Gene object
     Gene(
@@ -135,7 +140,7 @@ object Gene {
       name = name, orientation = orientation,
       exons = geneExons
     )
-  }
+  end apply
 
   /**
    * Convert a list of exons into a sorted set
@@ -154,7 +159,7 @@ object Gene {
      * @tparam A type we're comparing (must be derived from Gene)
      * @return -1 (x < y), 0 (x = y), 1 (x > y)
      */
-    override def compare(x: Gene, y: Gene): Int = {
+    override def compare(x: Gene, y: Gene): Int =
       val locC = compareLoci(x, y)
       if (locC != 0)
         locC
@@ -164,7 +169,9 @@ object Gene {
           exonSizeC
         else
           compareExons(x.exons, y.exons)
-    }
+        end if
+      end if
+    end compare
   }
 
   /**
@@ -174,7 +181,7 @@ object Gene {
    * @return -1 (x<y) 0 (x=y) or 1 (x>y)
    */
   @inline
-  private def compareLoci(x: Gene, y: Gene): Int = {
+  private def compareLoci(x: Gene, y: Gene): Int =
     val chrC = x.chr.compareTo(y.chr)
     if (chrC != 0)
       chrC
@@ -188,7 +195,10 @@ object Gene {
           endC
         else
           x.orientation.compareTo(y.orientation)
-  }
+        end if
+      end if
+    end if
+  end compareLoci
 
   /**
    * Compare two sets of exons.  If head of sets are not equal then we exit with comparison, otherwise we recurse
@@ -198,8 +208,8 @@ object Gene {
    * @return -1 (x < y), 0 (x = y), 1 (x > y)
    */
   @tailrec @inline
-  private def compareExons(x: SortedSet[(Int, Int)], y: SortedSet[(Int, Int)]): Int = {
-    (x.headOption, y.headOption) match {
+  private def compareExons(x: SortedSet[(Int, Int)], y: SortedSet[(Int, Int)]): Int =
+    (x.headOption, y.headOption) match
       case (None, None) => 0
       case (None, Some(_)) => -1
       case (Some(_), None) => 1
@@ -213,8 +223,10 @@ object Gene {
             endC
           else
             compareExons(x.tail, y.tail)
-    }
-  }
+          end if
+        end if
+    end match
+  end compareExons
 
   /**
    * Construct old Gene class.  Same as Java Gene constructor...
@@ -236,12 +248,12 @@ object Gene {
                     orientation: String,
                     exonsStart: List[Int],
                     exonsEnd: List[Int]
-                  ): umms.core.annotation.Gene = {
+                  ): umms.core.annotation.Gene =
     // Little helper method to do awkward conversion of scala List[Int] to java List[Integer]
     def getJavaIntList(list: List[Int]) = list.map(java.lang.Integer.valueOf).asJava
-
+    // Create java Gene instance
     new umms.core.annotation.Gene(
       chr, start, end, name, orientation, getJavaIntList(exonsStart), getJavaIntList(exonsEnd)
     )
-  }
+  end makeJavaGene
 }

@@ -11,19 +11,20 @@ object Files {
    * @return None if ok, otherwise Some(errorMessage)
    */
   def canRead(file: String): Option[ErrorStr] =
-    try {
+    try
       canRead(File(file))
-    } catch {
+    catch
       case e =>
         Some(error(s"Error accessing file $file: ${e.getLocalizedMessage}"))
-    }
+    end try
+  end canRead
 
   /**
    * Check that we can read a file.
    * @param file file to be read
    * @return None if ok, otherwise Some(errorMessage)
    */
-  def canRead(file: File): Option[ErrorStr] = {
+  def canRead(file: File): Option[ErrorStr] =
     // Get path for error messages
     val path = file.getCanonicalPath
     if (!file.exists())
@@ -34,7 +35,6 @@ object Files {
       None
     else
       Some(error(s"$path not accessible"))
-  }
-
-
+    end if
+  end canRead
 }
