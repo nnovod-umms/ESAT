@@ -188,17 +188,27 @@ object ESAT {
               val topGene = newGene.copy(name = geneName, isoForms = SortedSet(newGene))
               soFar + (chr -> Map(geneName -> topGene))
             case Some(chrEntries) =>
-              // Chrosome already there - Look for gene
+              // Chromosome already there - Look for gene
               chrEntries.get(geneName) match
-                // If gene already there then add new entry with merge of previous genes
+                // If gene already there then add new entry with merge of previous entries
                 case Some(foundGene) =>
+                  def getMin(x: Int, y: Int) =
+                    if (x == 0)
+                      y
+                    else if (y == 0)
+                      x
+                    else
+                      Integer.min(x, y)
+                    end if
+                  end getMin
+
                   if (newGene.chr == foundGene.chr && newGene.orientation == foundGene.orientation)
-                    val (newStart, newEnd, newExons) = foundGene.mergeExons(newGene)
-                    val startToSet = if (newExons.isEmpty) foundGene.start else newStart
-                    val endToSet = if (newExons.isEmpty) foundGene.end else newEnd
+                    val newStart = getMin(newGene.start, foundGene.start)
+                    val (newCdsStart, newCdsEnd, newExons) = foundGene.mergeExons(newGene)
                     val isoForms = foundGene.isoForms + newGene
                     val mergedGene =
-                      foundGene.copy(start = startToSet, end = endToSet, exons = newExons, isoForms = isoForms)
+                      foundGene.copy(start = newStart, end = Integer.max(newGene.end, foundGene.end),
+                        exons = newExons, cdsStart = newCdsStart, cdsEnd = newCdsEnd, isoForms = isoForms)
                     soFar + (chr -> (chrEntries + (geneName -> mergedGene)))
                   else
                     // If not same orientation then ignore it and issue a warning

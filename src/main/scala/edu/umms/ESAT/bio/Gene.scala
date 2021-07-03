@@ -15,7 +15,9 @@ import scala.collection.mutable.ListBuffer
  * @param end ending location within chromosome
  * @param name transcription name
  * @param orientation orientation (+ or -)
- * @param exons exons found
+ * @param exons exons found within gene
+ * @param cdsStart starting location for coding sequence
+ * @param cdsEnd ending location for coding sequence
  * @param isoForms other genes merged into this one
  */
 case class Gene
@@ -26,8 +28,18 @@ case class Gene
   name: String,
   orientation: String,
   exons: SortedSet[(Int, Int)],
+  cdsStart: Int,
+  cdsEnd: Int,
   isoForms: SortedSet[Gene] = SortedSet.empty[Gene] // IsoForms Needed?
 ) {
+  // Make sure coding region is within gene area
+  if (start != 0 && cdsStart < start)
+    logger.error(s"CDS start for $chr,$name,$orientation starts before gene start ($cdsStart vs. $start)")
+  end if
+  if (cdsEnd != 0 && cdsEnd > end)
+    logger.error(s"CDS end for $chr,$name,$orientation ends before gene end ($cdsEnd vs. $end)")
+  end if
+
   /**
    * Merge together two exon sets.  Combine them into one set and then combine overlapping exons within the set.
    * It is assumed that the exon sets are for the same chromosome and orientation.
@@ -92,8 +104,8 @@ object Gene {
    * Constructor with lists of exon starts/ends.  exonStarts/exonEnds are converted into an exon set and then the normal
    * constructor is called.
    * @param chr chromosome
-   * @param start starting location within chromosome (just used to check exons start, ignored if 0)
-   * @param end ending location within chromosome (just used to check exons end, ignored if 0)
+   * @param start starting location within chromosome
+   * @param end ending location within chromosome
    * @param name transcription name
    * @param orientation orientation (+ or -)
    * @param exonStarts list of exon starts (must have same lenth as exonEnds)
@@ -120,25 +132,20 @@ object Gene {
       end if
 
     // Get minimun start and maximun end for all exons and fold overlapping exons together
-    val (geneStart, geneEnd, geneExons) =
+    val (exonsStart, exonsEnd, geneExons) =
       if (exons.isEmpty)
-        (start, end, SortedSet.empty[(Int, Int)])
+        (0, 0, SortedSet.empty[(Int, Int)])
       else
-        val (exonStart, exonEnd, sortedExons) = foldExons(exonListToSortedSet(exons))
-        if ((exonStart != start && start != 0) || (exonEnd != end && end != 0))
-          logger.warn(
-            s"Gene $name has inconsistent start/end vs. exons start/end ($start,$end vs. $exonStart,$exonEnd)"
-          )
-        end if
-        (exonStart, exonEnd, sortedExons)
+        foldExons(exonListToSortedSet(exons))
       end if
 
     // Make new Gene object
     Gene(
       chr = chr,
-      start = geneStart, end = geneEnd,
+      start = start, end = end,
       name = name, orientation = orientation,
-      exons = geneExons
+      exons = geneExons,
+      cdsStart = exonsStart, cdsEnd = exonsEnd
     )
   end apply
 
