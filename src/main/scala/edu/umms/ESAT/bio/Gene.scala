@@ -33,10 +33,10 @@ case class Gene
   isoForms: SortedSet[Gene] = SortedSet.empty[Gene] // IsoForms Needed?
 ) {
   // Make sure coding region is within gene area
-  if (start != 0 && cdsStart < start)
+  if (cdsStart != 0 && cdsStart < start)
     logger.error(s"CDS start for $chr,$name,$orientation starts before gene start ($cdsStart vs. $start)")
   end if
-  if (cdsEnd != 0 && cdsEnd > end)
+  if (end != 0 && end < cdsEnd)
     logger.error(s"CDS end for $chr,$name,$orientation ends before gene end ($cdsEnd vs. $end)")
   end if
 
@@ -132,6 +132,7 @@ object Gene {
       end if
 
     // Get minimun start and maximun end for all exons and fold overlapping exons together
+    // @TODO Does it ever make sense for CDS start/end to be different from exons start/end??
     val (exonsStart, exonsEnd, geneExons) =
       if (exons.isEmpty)
         (0, 0, SortedSet.empty[(Int, Int)])
