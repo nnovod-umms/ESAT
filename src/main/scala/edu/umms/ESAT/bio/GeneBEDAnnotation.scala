@@ -9,7 +9,7 @@ import java.io.File
 object GeneBEDAnnotation {
   // Get logger
   lazy private val logger: Logger = LogManager.getLogger(this.getClass.getName)
-  // Make symbols for indicies to pieces of input line
+  // Make symbols for indicies to pieces of input line - must be in order fields will appear in lines in file
   private val (
     chrom: Int, txStart: Int, txEnd: Int,
     geneSymbol: Int, bedScore: Int,
@@ -27,7 +27,7 @@ object GeneBEDAnnotation {
    */
   def foldAnnotation[T](file: File, init: T)(doFold: (T, String, String, Gene) => T): T | ErrorStr =
   // Go read in file to make map of genes found
-    Reader.foldFile(file = file, init = init)(_.split("\\s++")) {
+    Reader.foldFile(file = file, init = init)(parseLine = _.split("\\s++")) {
       (soFar, newLine) =>
         // Some little helper methods
         @inline

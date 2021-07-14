@@ -32,9 +32,8 @@ object GeneMapping {
    */
   def foldMapping[T](file: File, init: T)(doFold: (T, String, String, Gene) => T): T | ErrorStr =
     // Go read in file to make map of genes found
-    ReaderWithHeader.foldFile(
-      file = file, headersNeeded = geneMappingHeaders, init = init, sep = "\t"
-    ){(soFar, newLine, headerIndicies) =>
+    ReaderWithHeader.foldFile(file = file, headersNeeded = geneMappingHeaders, init = init, sep = "\t") {
+      (soFar, newLine, headerIndicies) =>
         // Some little helper methods
         @inline
         def getField(fieldName: String): String = newLine(headerIndicies(fieldName))
