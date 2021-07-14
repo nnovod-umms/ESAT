@@ -18,7 +18,7 @@ object GeneBEDAnnotation {
     ) = Tuple.fromArray((0 to 9).toArray)
 
   /**
-   * Fold BED annotation file into chosen object
+   * Fold BED annotation file into chosen object.
    * @param file BED annotation file
    * @param init initial value for fold
    * @param doFold callback to do fold of each line (foldedValueSoFar, chr, geneName, geneObject) => newFoldedValue

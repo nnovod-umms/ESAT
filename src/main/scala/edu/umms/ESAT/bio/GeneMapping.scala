@@ -2,6 +2,7 @@ package edu.umms.ESAT.bio
 
 import edu.umms.ESAT.utils.ReaderWithHeader
 import edu.umms.ESAT.utils.Types.ErrorStr
+import org.apache.log4j.{LogManager, Logger}
 
 import java.io.File
 
@@ -9,6 +10,8 @@ import java.io.File
  * Process gene mapping files
  */
 object GeneMapping {
+  // Get logger
+  lazy private val logger: Logger = LogManager.getLogger(this.getClass.getName)
   // Mapping file headers
   private val geneMappingHeaders =
     Array("name2", "chrom", "txStart", "txEnd", "name", "strand", "exonStarts", "exonEnds")
@@ -32,31 +35,37 @@ object GeneMapping {
     ReaderWithHeader.foldFile(
       file = file, headersNeeded = geneMappingHeaders, init = init, sep = "\t"
     ){(soFar, newLine, headerIndicies) =>
-      // Some little helper methods
-      @inline
-      def getField(fieldName: String): String = newLine(headerIndicies(fieldName))
-      @inline
-      def getIntList(fieldName: String) = getField(fieldName).split(",").map(_.toInt).toList
-
-        // Get chromosome (key for Treemap)
-        val chr = getField(chrom)
-        // Get geneName (key for map of Genes)
-        val geneName = getField(geneSymbol)
-        // Make new Gene object
-        // @TODO name set to transcript ID.  Unclear if that or geneName is wanted.  In old ESAT it's first set
-        // to txID but then always changed to geneName.  ESAT also sets isoForms with extra entries that match, but
-        // getIsoforms method gets both extra entries and original entry, but ESAT itself sets the isoForms in
-        // combined entries to be the original entry plus others (so getIsoforms will get back original entry
-        // twice).  In a word, isoForms is a mess but maybe we don't even need it.  Also there's a bug in the
-        // Java version of Gene that sets both start and end to start when Gene entries were merged (via union) so
-        // it's unclear how important start/end is.
-        val newGene = Gene(
-          chr = chr,
-          start = getField(txStart).toInt, end = getField(txEnd).toInt,
-          name = getField(txID), orientation = getField(strand),
-          exonStarts = getIntList(exonStarts), exonEnds = getIntList(exonEnds)
-        )
-        doFold(soFar, chr, geneName, newGene)
+        // Some little helper methods
+        @inline
+        def getField(fieldName: String): String = newLine(headerIndicies(fieldName))
+        @inline
+        def getIntList(fieldName: String) = getField(fieldName).split(",").map(_.toInt).toList
+      
+        try
+          // Get chromosome (key for Treemap)
+          val chr = getField(chrom)
+          // Get geneName (key for map of Genes)
+          val geneName = getField(geneSymbol)
+          // Make new Gene object
+          // @TODO name set to transcript ID.  Unclear if that or geneName is wanted.  In old ESAT it's first set
+          // to txID but then always changed to geneName.  ESAT also sets isoForms with extra entries that match, but
+          // getIsoforms method gets both extra entries and original entry, but ESAT itself sets the isoForms in
+          // combined entries to be the original entry plus others (so getIsoforms will get back original entry
+          // twice).  In a word, isoForms is a mess but maybe we don't even need it.  Also there's a bug in the
+          // Java version of Gene that sets both start and end to start when Gene entries were merged (via union) so
+          // it's unclear how important start/end is.
+          val newGene = Gene(
+            chr = chr,
+            start = getField(txStart).toInt, end = getField(txEnd).toInt,
+            name = getField(txID), orientation = getField(strand),
+            exonStarts = getIntList(exonStarts), exonEnds = getIntList(exonEnds)
+          )
+          doFold(soFar, chr, geneName, newGene)
+        catch
+          case e =>
+            logger.error(s"Error (${e.getLocalizedMessage}) parsing gene mapping file line: $newLine")
+            soFar
+        end try
     }
   end foldMapping
 }
