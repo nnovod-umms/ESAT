@@ -4,7 +4,7 @@ import edu.umms.ESAT.parse
 import edu.umms.ESAT.parse.Params
 import edu.umms.ESAT.utils.{Files, Reader, ReaderWithHeader, Types}
 import edu.umms.ESAT.utils.Types.ErrorStr
-import edu.umms.ESAT.bio.{Gene, GeneMapping}
+import edu.umms.ESAT.bio.{Gene, GeneBEDAnnotation, GeneMapping}
 import org.apache.log4j.{BasicConfigurator, LogManager, Logger}
 import scopt.OParser
 
@@ -225,15 +225,11 @@ object ESAT {
         line.split("\\s++")
       end if
     end splitLine
-
-    Reader.foldFile(file = file, init = TreeMap.empty[String, SortedSet[Gene]])(parseLine = splitLine) {
+    
+    GeneBEDAnnotation.foldAnnotation(file = file, init = TreeMap.empty[String, SortedSet[Gene]]) {
       // Fold in new line to what we have so far
-      case (soFar, newLine) =>
-        if (newLine.isEmpty)
-          soFar
-        else
-          soFar
-        end if
+      case (soFar, chr, geneName, gene) =>
+        soFar
     }
   end parseAnnotations
 }
