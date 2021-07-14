@@ -1,6 +1,6 @@
 package edu.umms.ESAT.utils
 
-import edu.umms.ESAT.utils.Control
+import edu.umms.ESAT.utils.Files
 import edu.umms.ESAT.utils.Types._
 
 import java.io.{BufferedReader, File, FileReader}
@@ -21,7 +21,7 @@ object Reader {
   def processFile[T](file: File)(processor: (Iterator[String] => T)): T | ErrorStr =
     try
       // Open file using controller that guarantees file will be closed
-      Control.using(Source.fromFile(file)) {
+      Files.using(Source.fromFile(file)) {
         input =>
           // Get iterator and go process file
           val fileLines = input.getLines()
@@ -37,14 +37,17 @@ object Reader {
    * Parse a file with delimited lines, folding lines into a single output.
    * @param file input file
    * @param init initial value for doing fold
-   * @param sep separator to use to split lines
-   * @param doFold callback fold in each line (resultSoFar, nextLineFieldsArray, Map of HeaderName->ArrayIndex) => T
+   * @param sep regular expression to use to split lines
+   * @param parseLine callback to do initial parse of a line of input (inputLine) => parsedLine
+   * @param doFold callback fold in each line (resultSoFar, nextParsedLine, Map of HeaderName->ArrayIndex) => T
+   * @tparam L output of parsing line and input to doFold
    * @tparam T output result type for fold
    * @return folding result, otherwise error
    */
-  def foldFile[T](file: File, init: T, sep: String)(doFold: (T, Array[String]) => T): T | ErrorStr =
+  def foldFile[L, T](file: File, init: T)(parseLine: (String) => L)(doFold: (T, L) => T)
+  : T | ErrorStr =
     processFile(file) {
-      (reader) => foldFileLines(reader, init, sep)(doFold)
+      (reader) => foldFileLines(reader, init)(parseLine)(doFold)
     }
   end foldFile
 
@@ -52,14 +55,17 @@ object Reader {
    * Fold lines of a file into a single result.
    * @param reader file lines
    * @param init initial value to start fold
-   * @param sep separator to use for lines
+   * @param sep regular expression to use to split lines
+   * @param parseLine callback to do initial parse of a line of input (inputLine) => parsedLine
    * @param doFold callback to process each line: (resultsSoFar, lineFields) => newResults
+   * @tparam L output of parsing line and input to doFold
    * @tparam T results type
    * @return results of folding file lines
    */
-  def foldFileLines[T](reader: Iterator[String], init: T, sep: String)(doFold: (T, Array[String]) => T): T =
+  def foldFileLines[L, T](reader: Iterator[String], init: T)(parseLine: (String) => L)(doFold: (T, L) => T)
+  : T =
     reader.foldLeft(init) {
-      case (soFar, next) => doFold(soFar, next.split(sep))
+      case (soFar, next) => doFold(soFar, parseLine(next))
     }
   end foldFileLines
 }

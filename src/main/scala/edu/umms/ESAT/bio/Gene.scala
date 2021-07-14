@@ -248,14 +248,13 @@ object Gene {
    * @param exonEnds list of exon ends (must match up with exonStarts)
    * @return java Gene class instance
    */
-  def makeJavaGene(
-                    chr: String,
-                    start: Int,
-                    end: Int,
-                    name: String,
-                    orientation: String,
-                    exonsStart: List[Int],
-                    exonsEnd: List[Int]
+  def makeJavaGene(chr: String,
+                   start: Int,
+                   end: Int,
+                   name: String,
+                   orientation: String,
+                   exonsStart: List[Int],
+                   exonsEnd: List[Int]
                   ): umms.core.annotation.Gene =
     // Little helper method to do awkward conversion of scala List[Int] to java List[Integer]
     def getJavaIntList(list: List[Int]) = list.map(java.lang.Integer.valueOf).asJava

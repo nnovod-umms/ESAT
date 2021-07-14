@@ -2,9 +2,9 @@ package edu.umms.ESAT
 
 import edu.umms.ESAT.parse
 import edu.umms.ESAT.parse.Params
-import edu.umms.ESAT.utils.{Control, Files, ReaderWithHeader, Types}
+import edu.umms.ESAT.utils.{Files, Reader, ReaderWithHeader, Types}
 import edu.umms.ESAT.utils.Types.ErrorStr
-import edu.umms.ESAT.bio.Gene
+import edu.umms.ESAT.bio.{Gene, GeneMapping}
 import org.apache.log4j.{BasicConfigurator, LogManager, Logger}
 import scopt.OParser
 
@@ -28,6 +28,7 @@ object ESAT {
       case Some(params) =>
         val startTime = System.nanoTime()
         // Parse was successful - now go do the work
+        /** Temp Testing Area */
         println(s"$params")
         println(s"${getInput(params)}")
         println(s"${parseGeneMapping(File("NoWay"))}")
@@ -38,6 +39,7 @@ object ESAT {
         val g4 = Gene("a", 1, 50, "b", "+", List(1, 30, 10, 40), List(7, 40, 11, 50))
         println(g4.copy(isoForms = SortedSet(g1, g2, g3, g4)))
         println(g3.mergeExons(g4))
+        /** End Temp Testing Area */
         logger.info(s"Total processing time: ${(System.nanoTime() - startTime )/ 1e9} sec\n")
       case _ =>
         // Parse failed, error message will have been displayed
@@ -69,7 +71,7 @@ object ESAT {
               err
             case None =>
               // Go read in alignment file
-              Control.using(Source.fromFile(alignmentFile)) {
+              Files.using(Source.fromFile(alignmentFile)) {
                 source =>
                   val lines = source.getLines()
                   // Get map of experimentName->files
@@ -139,48 +141,10 @@ object ESAT {
    * @return TreeMap(chr -> SortedSet[Gene]) or ErrorStr
    */
   private def parseGeneMapping(file: File): TreeMap[String, SortedSet[Gene]] | ErrorStr =
-    // Mapping file headers
-    val geneMappingHeaders =
-      Array("name2", "chrom", "txStart", "txEnd", "name", "strand", "exonStarts", "exonEnds")
-    // Make symbols from headers
-    val (
-      geneSymbol: String, chrom: String,
-      txStart: String, txEnd: String, txID: String,
-      strand: String, exonStarts: String, exonEnds: String
-    ) = Tuple.fromArray(geneMappingHeaders)
     // Go read in file to make map of genes found
     val chrTreeWithGenes =
-      ReaderWithHeader.foldFile(
-        file = file, headersNeeded = geneMappingHeaders, init = TreeMap.empty[String, Map[String, Gene]], sep = "\t"
-      ) {
-        (soFar, newLine, headerIndicies) =>
-          // Some little helper methods
-          @inline
-          def getField(fieldName: String): String = newLine(headerIndicies(fieldName))
-          @inline
-          def getIntList(fieldName: String) =
-            getField(fieldName).split(",").map(_.toInt).toList
-
-          // Get chromosome (key for Treemap)
-          val chr = getField(chrom)
-          // Get geneName (key for map of Genes)
-          val geneName = getField(geneSymbol)
-          // Make new Gene object
-          // @TODO name set to transcript ID.  Unclear if that or geneName is wanted.  In old ESAT it's first set
-          // to txID but then always changed to geneName.  ESAT also sets isoForms with extra entries that match, but
-          // getIsoforms method gets both extra entries and original entry, but ESAT itself sets the isoForms in
-          // combined entries to be the original entry plus others (so getIsoforms will get back original entry
-          // twice).  In a word, isoForms is a mess but maybe we don't even need it.  Also there's a bug in the
-          // Java version of Gene that sets both start and end to start when Gene entries were merged (via union) so
-          // it's unclear how important start/end is.
-          val newGene =
-            Gene(
-              chr = chr,
-              start = getField(txStart).toInt, end = getField(txEnd).toInt,
-              name = getField(txID), orientation = getField(strand),
-              exonStarts = getIntList(exonStarts), exonEnds = getIntList(exonEnds)
-            )
-
+      GeneMapping.foldMapping(file, TreeMap.empty[String, Map[String, Gene]]) {
+        (soFar, chr, geneName, newGene) =>
           // See if chromsome already in tree
           soFar.get(chr) match
             // New chromosome - init it with map of new entry
@@ -245,4 +209,31 @@ object ESAT {
     TreeMap(byChr.toSeq:_*)
   }
   */
+
+  /**
+   * Parse annotation file (in BED format)
+   * @param file annotation file
+   * @return map of chromosome->genes
+   */
+  private def parseAnnotations(file: File): TreeMap[String, SortedSet[Gene]] | ErrorStr =
+    // Trim and split line using white space as separator and returning empty array if comment line etc.
+    def splitLine(in: String) =
+      val line = in.trim
+      if (line.length <= 0 || line.startsWith("#") || line.startsWith("track") || line.startsWith("browser"))
+        Array.empty[String]
+      else
+        line.split("\\s++")
+      end if
+    end splitLine
+
+    Reader.foldFile(file = file, init = TreeMap.empty[String, SortedSet[Gene]])(parseLine = splitLine) {
+      // Fold in new line to what we have so far
+      case (soFar, newLine) =>
+        if (newLine.isEmpty)
+          soFar
+        else
+          soFar
+        end if
+    }
+  end parseAnnotations
 }

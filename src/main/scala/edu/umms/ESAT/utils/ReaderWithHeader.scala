@@ -1,6 +1,5 @@
 package edu.umms.ESAT.utils
 
-import edu.umms.ESAT.utils.Control
 import edu.umms.ESAT.utils.Types._
 
 import java.io.{BufferedReader, File, FileReader}
@@ -46,7 +45,7 @@ object ReaderWithHeader {
                 error(s"${file.getCanonicalPath} missing mandatory header $headerMissing")
               // Go fold together remaining lines
               case None =>
-                Reader.foldFileLines(reader, init, sep)(doFold(_, _, headersMap))
+                Reader.foldFileLines(reader, init)(_.split(sep))(doFold(_, _, headersMap))
             end match
         end match
     }
