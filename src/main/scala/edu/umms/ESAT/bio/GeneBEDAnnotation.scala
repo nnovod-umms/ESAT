@@ -9,12 +9,13 @@ import java.io.File
 object GeneBEDAnnotation {
   // Get logger
   lazy private val logger: Logger = LogManager.getLogger(this.getClass.getName)
-  // Make symbols for indicies to pieces of input line - fields must be in order they will appear in lines in file
+  // Make symbols for indicies to pieces of input line - fields below must be in order they will appear in lines in file
+  // See https://en.wikipedia.org/wiki/BED_(file_format)
   private val (
-    chrom: Int, txStart: Int, txEnd: Int,
+    chrom: Int, chromStart: Int, chromEnd: Int,
     geneSymbol: Int, bedScore: Int,
     orientation: Int, cdsStart: Int, cdsEnd: Int,
-    pslString: Int, numExons: Int,
+    displayColor: Int, numExons: Int,
     exonSizes: Int, exonStarts: Int
     ) = Tuple.fromArray((0 to 11).toArray)
 
@@ -27,8 +28,18 @@ object GeneBEDAnnotation {
    * @return final folded value
    */
   def foldAnnotation[T](file: File, init: T)(doFold: (T, String, String, Gene) => T): T | ErrorStr =
-  // Go read in file to make map of genes found
-    Reader.foldFile(file = file, init = init)(parseLine = _.split("\\s++")) {
+    // Method to trim and split line using white space as separator and returning empty array if comment or header line
+    def splitLine(in: String) =
+      val line = in.trim
+      if (line.length <= 0 || line.startsWith("#") || line.startsWith("track") || line.startsWith("browser"))
+        Array.empty[String]
+      else
+        line.split("\\s++")
+      end if
+    end splitLine
+
+    // Go read in file to make map of genes found
+    Reader.foldFile(file = file, init = init)(parseLine = splitLine) {
       (soFar, newLine) =>
         // Some little helper methods
         @inline
@@ -48,8 +59,8 @@ object GeneBEDAnnotation {
           // Get each field, continuing so long as fields retrieved (flatMap method only called if Some(val) is returned)
           getField(chrom).flatMap(chr =>
             getField(geneSymbol).flatMap(geneName =>
-              getField(txStart).flatMap(txStartStr =>
-                getField(txEnd).flatMap(txEndStr =>
+              getField(chromStart).flatMap(txStartStr =>
+                getField(chromEnd).flatMap(txEndStr =>
                   getField(orientation).flatMap(strand =>
                     getField(numExons).flatMap(numberExons =>
                       getIntFields(exonSizes).flatMap(exonSizesArray =>
@@ -76,12 +87,14 @@ object GeneBEDAnnotation {
           match
             case Some(foldValue) => foldValue
             case None =>
-              logger.error(s"Missing fields in BED annotation file line: $newLine")
+              // If not blank line then something is not right
+              if (newLine.nonEmpty)
+                logger.error(s"Missing fields in BED annotation file line: ${newLine.mkString("\t")}")
               soFar
           end match
         catch
           case e =>
-            logger.error(s"Error (${e.getLocalizedMessage}) parsing BED annotation file line: $newLine")
+            logger.error(s"Error (${e.getLocalizedMessage}) parsing BED annotation file line: ${newLine.mkString("\t")}")
             soFar
         end try
     }
@@ -101,7 +114,7 @@ object GeneBEDAnnotation {
     // @TODO replaceAll needed?  Was in setBlockStartsAndEnds of old Gene code
     def makeInt(s: String) = Integer.parseInt(s.replaceAll("\"", "").trim)
 
-    // Get maximum size we can use
+    // Get maximum size we can use (all sizes should be equal, but using min just in case)
     val exonsToProcess = Math.min(numExons, Math.min(exonSizes.size, exonStartOffsets.size))
     // Go through arrays and map them to lists of exon starts and ends
     exonStartOffsets.slice(0, exonsToProcess).indices.foldLeft((List.empty[Int], List.empty[Int])) {

@@ -216,16 +216,6 @@ object ESAT {
    * @return map of chromosome->genes
    */
   private def parseAnnotations(file: File): TreeMap[String, SortedSet[Gene]] | ErrorStr =
-    // Trim and split line using white space as separator and returning empty array if comment line etc.
-    def splitLine(in: String) =
-      val line = in.trim
-      if (line.length <= 0 || line.startsWith("#") || line.startsWith("track") || line.startsWith("browser"))
-        Array.empty[String]
-      else
-        line.split("\\s++")
-      end if
-    end splitLine
-    
     GeneBEDAnnotation.foldAnnotation(file = file, init = TreeMap.empty[String, SortedSet[Gene]]) {
       // Fold in new line to what we have so far
       case (soFar, chr, geneName, gene) =>
