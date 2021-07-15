@@ -14,7 +14,8 @@ object GeneBEDAnnotation {
     chrom: Int, txStart: Int, txEnd: Int,
     geneSymbol: Int, bedScore: Int,
     orientation: Int, cdsStart: Int, cdsEnd: Int,
-    exonStarts: Int, exonEnds: Int
+    pslString: Int, numExons: Int,
+    exonSizes: Int, exonStarts: Int
     ) = Tuple.fromArray((0 to 9).toArray)
 
   /**
@@ -40,8 +41,8 @@ object GeneBEDAnnotation {
         end getField
 
         @inline
-        def getIntList(fieldIndex: Int): Option[List[Int]] =
-          getField(fieldIndex).map(_.split(",").map(_.toInt).toList)
+        def getIntFields(fieldIndex: Int): Option[Array[Int]] =
+          getField(fieldIndex).map(_.replaceAll("\"", "").split(",").map(_.toInt))
 
         try
           // Get each field, continuing so long as fields retrieved (flatMap method only called if Some(val) is returned)
@@ -50,16 +51,21 @@ object GeneBEDAnnotation {
               getField(txStart).flatMap(txStartStr =>
                 getField(txEnd).flatMap(txEndStr =>
                   getField(orientation).flatMap(strand =>
-                    getIntList(exonStarts).flatMap(exonStartList =>
-                      getIntList(exonEnds).map(exonEndList => {
-                        // We retrieved all the fields needed - make a Gene and callback to fold it in
-                        val newGene = Gene(
-                          chr = chr, start = txStartStr.toInt, end = txEndStr.toInt,
-                          name = geneName, orientation = strand,
-                          exonStarts = exonStartList, exonEnds = exonEndList
-                        )
-                        doFold(soFar, chr, geneName, newGene)
-                      })
+                    getField(numExons).flatMap(numberExons =>
+                      getIntFields(exonSizes).flatMap(exonSizesArray =>
+                        getIntFields(exonStarts).map(exonStartArray => {
+                          val (exonStarts, exonEnds) =
+                            getExonStartsAndEnds(blockStarts = exonStartArray, blockSizes = exonSizesArray,
+                              size = numberExons.toInt, start = txStartStr.toInt)
+                          // We retrieved all the fields needed - make a Gene and callback to fold it in
+                          val newGene = Gene(
+                            chr = chr, start = txStartStr.toInt, end = txEndStr.toInt,
+                            name = geneName, orientation = strand,
+                            exonStarts = exonStarts, exonEnds = exonEnds
+                          )
+                          doFold(soFar, chr, geneName, newGene)
+                        })
+                      )
                     )
                   )
                 )
@@ -79,4 +85,18 @@ object GeneBEDAnnotation {
         end try
     }
   end foldAnnotation
+
+  private def getExonStartsAndEnds(blockStarts: Array[Int], blockSizes: Array[Int], size: Int, start: Int)
+  : (List[Int], List[Int]) =
+    def makeInt(s: String) = Integer.parseInt(s.replaceAll("\"", "").trim)
+
+    val numExons = Math.min(size, Math.min(blockSizes.size, blockStarts.size))
+    blockStarts.slice(0, numExons).indices.foldLeft((List.empty[Int], List.empty[Int])) {
+      case ((starts, ends), index) =>
+        val blockStart = start + blockStarts(index)
+        (blockStart +: starts, (blockStart + blockSizes(index)) +: ends)
+    }
+  end getExonStartsAndEnds
+
+
 }
