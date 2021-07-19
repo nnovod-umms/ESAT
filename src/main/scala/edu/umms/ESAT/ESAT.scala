@@ -42,8 +42,8 @@ object ESAT {
             val t = inputData.asInstanceOf[TreeMap[String, SortedSet[Gene]]]
             TEMP_checkInput(t)
           // Error
-          case e: ErrorStr =>
-            logger.error(s"Failure processing input: $e")
+          case e =>
+            logger.error(s"Failure processing input: ${e.asInstanceOf[ErrorStr]}")
         end match
 
         logger.info(s"Total processing time: ${(System.nanoTime() - startTime )/ 1e9} sec\n")
