@@ -30,7 +30,7 @@ object GeneMapping {
    * @tparam T type of folded value
    * @return final folded value
    */
-  def foldMapping[T](file: File, init: T)(doFold: (T, String, String, Gene) => T): T | ErrorStr =
+  def foldGeneFile[T](file: File, init: T)(doFold: (T, String, String, Gene) => T): T | ErrorStr =
     // Go read in file to make map of genes found
     ReaderWithHeader.foldFile(file = file, headersNeeded = geneMappingHeaders, init = init, sep = "\t") {
       (soFar, newLine, headerIndicies) =>
@@ -46,7 +46,7 @@ object GeneMapping {
           // Get geneName (key for map of Genes)
           val geneName = getField(geneSymbol)
           // Make new Gene object
-          // @TODO name set to transcript ID.  Unclear if that or geneName is wanted.  In old ESAT it's first set
+          // @TODO name set to transcript ID?  Unclear if that or geneName is wanted.  In old ESAT it's first set
           // to txID but then always changed to geneName.  ESAT also sets isoForms with extra entries that match, but
           // getIsoforms method gets both extra entries and original entry, but ESAT itself sets the isoForms in
           // combined entries to be the original entry plus others (so getIsoforms will get back original entry
@@ -66,5 +66,5 @@ object GeneMapping {
             soFar
         end try
     }
-  end foldMapping
+  end foldGeneFile
 }

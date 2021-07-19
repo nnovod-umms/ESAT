@@ -4,7 +4,7 @@ import edu.umms.ESAT.parse
 import edu.umms.ESAT.parse.Params
 import edu.umms.ESAT.utils.{Files, Reader, ReaderWithHeader, Types}
 import edu.umms.ESAT.utils.Types.ErrorStr
-import edu.umms.ESAT.bio.{Gene, GeneBEDAnnotation, GeneMapping}
+import edu.umms.ESAT.bio.{Gene, GeneBEDAnnotation, GeneMapping, GeneFileFold}
 import org.apache.log4j.{BasicConfigurator, LogManager, Logger}
 import scopt.OParser
 
@@ -28,24 +28,53 @@ object ESAT {
       case Some(params) =>
         val startTime = System.nanoTime()
         // Parse was successful - now go do the work
-        /** Temp Testing Area */
-        println(s"$params")
-        println(s"${getInput(params)}")
-        println(s"${parseGeneMapping(File("NoWay"))}")
-        val g1 = Gene("a", 1, 5, "b", "+", List(1, 2, 3, 4), List(2, 3, 4, 5))
-        val g2 = Gene("a", 1, 5, "b", "+", List(1, 2, 3, 4), List(2, 3, 4, 5))
-        println(g1.mergeExons(g2))
-        val g3 = Gene("a", 1, 25, "b", "+", List(1, 20, 5, 10), List(2, 25, 10, 19))
-        val g4 = Gene("a", 1, 50, "b", "+", List(1, 30, 10, 40), List(7, 40, 11, 50))
-        println(g4.copy(isoForms = SortedSet(g1, g2, g3, g4)))
-        println(g3.mergeExons(g4))
-        /** End Temp Testing Area */
+        // Get input file along with processor (one of bed annotation and gene mapping file must be specified)
+        val (geneParser: GeneFileFold, geneFile: File) =
+          if (params.annotationFile.isDefined)
+            (GeneBEDAnnotation, params.annotationFile.get)
+          else
+            (GeneMapping, params.gMapFile.get)
+        // Parse input file
+        val inputData = parseGeneInputData(geneFile, geneParser)
+        inputData match
+          // Successfully made TreeMap
+          case _ : TreeMap[_, _] =>
+            val t = inputData.asInstanceOf[TreeMap[String, SortedSet[Gene]]]
+            TEMP_checkInput(t)
+          // Error
+          case e: ErrorStr =>
+            logger.error(s"Failure processing input: $e")
+        end match
+
         logger.info(s"Total processing time: ${(System.nanoTime() - startTime )/ 1e9} sec\n")
       case _ =>
         // Parse failed, error message will have been displayed
         System.exit(1)
     end match
   end main
+
+  private def TEMP_checkInput(t: TreeMap[String, SortedSet[Gene]]) =
+    t.foreach {
+      case (chr, geneMap) =>
+        println(s"Chr: $chr:")
+        println(s"  ${geneMap.size} gene(s)")
+        val isos = geneMap.filter((g) => g.isoForms.size != 1)
+        if (isos.nonEmpty)
+          println(s"  Found ${isos.size} with multiple isoForms")
+          isos.foreach(iso => {
+            val iName = iso.name
+            val diffName = iso.isoForms.filter(i => i.name != iName)
+            if (diffName.nonEmpty)
+              println(s"    ** ${diffName.size} with different gene names")
+            val iRegions = iso.exons.size
+            val totRegions = iso.isoForms.foldLeft(0)(_ + _.exons.size)
+            if (totRegions != iRegions)
+              println(s"    ** $iRegions merged into $totRegions")
+          })
+          isos.foreach(i => println(s"    $i"))
+        end if
+    }
+  end TEMP_checkInput
 
   /**
    * Get input bam files.
@@ -136,14 +165,15 @@ object ESAT {
   end parseAlignments
 
   /**
-   * Parse gene mapping file.
+   * Parse gene input file.
    * @param file Gene mapping file
+   * @param folder callback to parse/fold file input
    * @return TreeMap(chr -> SortedSet[Gene]) or ErrorStr
    */
-  private def parseGeneMapping(file: File): TreeMap[String, SortedSet[Gene]] | ErrorStr =
+  private def parseGeneInputData(file: File, folder: GeneFileFold): TreeMap[String, SortedSet[Gene]] | ErrorStr =
     // Go read in file to make map of genes found
     val chrTreeWithGenes =
-      GeneMapping.foldMapping(file, TreeMap.empty[String, Map[String, Gene]]) {
+      folder.foldGeneFile(file, TreeMap.empty[String, Map[String, Gene]]) {
         (soFar, chr, geneName, newGene) =>
           // See if chromsome already in tree
           soFar.get(chr) match
@@ -156,6 +186,7 @@ object ESAT {
               chrEntries.get(geneName) match
                 // If gene already there then add new entry with merge of previous entries
                 case Some(foundGene) =>
+                  // Get min, treating 0 as unspecified
                   def getMin(x: Int, y: Int) =
                     if (x == 0)
                       y
@@ -167,7 +198,9 @@ object ESAT {
                   end getMin
 
                   if (newGene.chr == foundGene.chr && newGene.orientation == foundGene.orientation)
+                    // Get start of found/new gene combination
                     val newStart = getMin(newGene.start, foundGene.start)
+                    // Merge exons of two genes
                     val (newCdsStart, newCdsEnd, newExons) = foundGene.mergeExons(newGene)
                     val isoForms = foundGene.isoForms + newGene
                     val mergedGene =
@@ -199,7 +232,8 @@ object ESAT {
       // Error
       case e => e.asInstanceOf[ErrorStr]
     end match
-  end parseGeneMapping
+  end parseGeneInputData
+
 
   /* If we don't build TreeMap in first pass...
   private def GeneMappingToAnnotation(genes: Map[String, Gene]): TreeMap[String, SortedSet[Gene]] = {
@@ -209,17 +243,4 @@ object ESAT {
     TreeMap(byChr.toSeq:_*)
   }
   */
-
-  /**
-   * Parse annotation file (in BED format)
-   * @param file annotation file
-   * @return map of chromosome->genes
-   */
-  private def parseAnnotations(file: File): TreeMap[String, SortedSet[Gene]] | ErrorStr =
-    GeneBEDAnnotation.foldAnnotation(file = file, init = TreeMap.empty[String, SortedSet[Gene]]) {
-      // Fold in new line to what we have so far
-      case (soFar, chr, geneName, gene) =>
-        soFar
-    }
-  end parseAnnotations
 }

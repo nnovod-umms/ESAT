@@ -1,7 +1,7 @@
 target/
-dmetagServer/src/main/resources/dmetagclientSources/
 *.class
 *.log
+*.log.*
 *.iml
 *.ipr
 *.iws

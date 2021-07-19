@@ -6,18 +6,21 @@ import org.apache.log4j.{LogManager, Logger}
 
 import java.io.File
 
-object GeneBEDAnnotation {
+object GeneBEDAnnotation extends GeneFileFold {
   // Get logger
   lazy private val logger: Logger = LogManager.getLogger(this.getClass.getName)
-  // Make symbols for indicies to pieces of input line - fields below must be in order they will appear in lines in file
+
+  // Make symbols for indicies to pieces of input line
+  // Fields below must be in order they will appear within file input lines
   // See https://en.wikipedia.org/wiki/BED_(file_format)
-  private val (
+  private val
+  (
     chrom: Int, chromStart: Int, chromEnd: Int,
     geneSymbol: Int, bedScore: Int,
     orientation: Int, cdsStart: Int, cdsEnd: Int,
     displayColor: Int, numExons: Int,
     exonSizes: Int, exonStarts: Int
-    ) = Tuple.fromArray((0 to 11).toArray)
+  ) = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11)
 
   /**
    * Fold BED annotation file into chosen object.
@@ -27,11 +30,10 @@ object GeneBEDAnnotation {
    * @tparam T type of folded value
    * @return final folded value
    */
-  def foldAnnotation[T](file: File, init: T)(doFold: (T, String, String, Gene) => T): T | ErrorStr =
+  def foldGeneFile[T](file: File, init: T)(doFold: (T, String, String, Gene) => T): T | ErrorStr =
     // Method to trim and split line using white space as separator and returning empty array if comment or header line
-    def splitLine(in: String) =
-      val line = in.trim
-      if (line.length <= 0 || line.startsWith("#") || line.startsWith("track") || line.startsWith("browser"))
+    def splitLine(line: String) =
+      if (line.isEmpty || line.startsWith("#") || line.startsWith("track") || line.startsWith("browser"))
         Array.empty[String]
       else
         line.split("\\s++")
@@ -53,10 +55,11 @@ object GeneBEDAnnotation {
 
         @inline
         def getIntFields(fieldIndex: Int): Option[Array[Int]] =
+          // @TODO replaceAll needed to get rid of quotes?  Was in setBlockStartsAndEnds of old Gene code
           getField(fieldIndex).map(_.replaceAll("\"", "").split(",").map(_.toInt))
 
         try
-          // Get each field, continuing so long as fields retrieved (flatMap method only called if Some(val) is returned)
+          // Get each field, continuing so long as fields retrieved (flatMap method only called for Some(val))
           getField(chrom).flatMap(chr =>
             getField(geneSymbol).flatMap(geneName =>
               getField(chromStart).flatMap(txStartStr =>
@@ -98,7 +101,7 @@ object GeneBEDAnnotation {
             soFar
         end try
     }
-  end foldAnnotation
+  end foldGeneFile
 
   /**
    * Get lists for exon starts/ends.
@@ -110,10 +113,6 @@ object GeneBEDAnnotation {
    */
   private def getExonStartsAndEnds(exonStartOffsets: Array[Int], exonSizes: Array[Int], numExons: Int, blockStart: Int)
   : (List[Int], List[Int]) =
-    // Helper to make an integer from a string
-    // @TODO replaceAll needed?  Was in setBlockStartsAndEnds of old Gene code
-    def makeInt(s: String) = Integer.parseInt(s.replaceAll("\"", "").trim)
-
     // Get maximum size we can use (all sizes should be equal, but using min just in case)
     val exonsToProcess = Math.min(numExons, Math.min(exonSizes.size, exonStartOffsets.size))
     // Go through arrays and map them to lists of exon starts and ends
